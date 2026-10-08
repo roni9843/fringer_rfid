@@ -12,8 +12,11 @@
 // ========================================================
 // --- SaaS Hardware Configuration ---
 // ========================================================
-const char* ssid = "Bashir Uddin";
-const char* password = "0506986654";
+// const char* ssid = "Bashir Uddin";
+// const char* password = "0506986654";
+
+const char* ssid = "GalaxyS21";
+const char* password = "aaaaaaap";
 
 // SaaS Server URL (Without https://)
 const char* serverHost = "jh5nng6t-3000.asse.devtunnels.ms";
@@ -162,6 +165,7 @@ void drawChaseBorder(unsigned long now) {
     else if (p < w + h) { px = x1; py = y0 + (p - w); }
     else if (p < 2 * w + h) { px = x1 - (p - w - h); py = y1; }
     else { px = x0; py = y1 - (p - 2 * w - h); }
+
     display.drawPixel(px, py, SSD1306_WHITE);
   }
   int head = (now / 6) % per;

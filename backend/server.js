@@ -6,15 +6,18 @@ const cors = require('cors');
 const path = require('path');
 const axios = require('axios');
 
+
+
+
 const Organization = require('./models/Organization');
 const User = require('./models/User');
 const Attendance = require('./models/Attendance');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, { 
+const io = socketIo(server, {
   cors: { origin: '*' },
-  allowEIO3: true 
+  allowEIO3: true
 });
 
 // Middleware
@@ -313,7 +316,7 @@ io.on('connection', (socket) => {
     const token = socket.orgToken || data?.token;
     const { fingerprintId, rfidUid } = data;
     if (!token) return;
-    
+
     const org = await Organization.findOne({ token, isActive: true });
     if (!org) return;
     await touchDeviceHeartbeat(org);
