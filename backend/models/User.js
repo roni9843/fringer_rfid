@@ -41,8 +41,21 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Ensure fingerprintId and rfidUid are unique within each Organization
-userSchema.index({ orgId: 1, fingerprintId: 1 }, { unique: true, sparse: true });
-userSchema.index({ orgId: 1, rfidUid: 1 }, { unique: true, sparse: true });
+// Ensure fingerprintId and rfidUid are unique within each Organization ONLY when they exist as valid values
+userSchema.index(
+  { orgId: 1, fingerprintId: 1 },
+  { 
+    unique: true, 
+    partialFilterExpression: { fingerprintId: { $type: 'number' } } 
+  }
+);
+
+userSchema.index(
+  { orgId: 1, rfidUid: 1 },
+  { 
+    unique: true, 
+    partialFilterExpression: { rfidUid: { $type: 'string' } } 
+  }
+);
 
 module.exports = mongoose.model('User', userSchema);

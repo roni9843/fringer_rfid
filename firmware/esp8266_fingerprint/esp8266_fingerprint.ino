@@ -19,7 +19,8 @@ const char* ssid = "GalaxyS21";
 const char* password = "aaaaaaap";
 
 // SaaS Server URL (Without https://)
-const char* serverHost = "jh5nng6t-3000.asse.devtunnels.ms";
+// const char* serverHost = "jh5nng6t-3000.asse.devtunnels.ms";
+const char* serverHost = "23.94.182.250:5001";
 const uint16_t serverPort = 443;
 
 // Organization Unique Token
@@ -348,11 +349,10 @@ void animateWait(String title, String msg1, String msg2) {
 String sendPostRequest(String endpoint, String payload) {
   if (WiFi.status() != WL_CONNECTED) return "";
   
-  WiFiClientSecure client;
-  client.setInsecure(); // Bypass SSL verification for HTTPS
+  WiFiClient client;
   
   HTTPClient http;
-  String url = "https://" + String(serverHost) + endpoint;
+  String url = "http://" + String(serverHost) + endpoint;
   
   http.begin(client, url);
   http.addHeader("Content-Type", "application/json");
@@ -375,11 +375,10 @@ String sendPostRequest(String endpoint, String payload) {
 void pollServerCommand() {
   if (WiFi.status() != WL_CONNECTED) return;
   
-  WiFiClientSecure client;
-  client.setInsecure();
+  WiFiClient client;
   
   HTTPClient http;
-  String url = "https://" + String(serverHost) + "/api/command";
+  String url = "http://" + String(serverHost) + "/api/command";
   
   http.begin(client, url);
   http.addHeader("x-device-token", deviceToken);

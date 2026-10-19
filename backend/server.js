@@ -26,9 +26,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Connect to MongoDB
-// mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/attendanceDB')
 mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://organicUser:roni9843@cluster0.tibcl.mongodb.net/attendanceDB')
-  .then(() => console.log('✅ MongoDB Connected (SaaS Platform)'))
+  .then(async () => {
+    console.log('✅ MongoDB Connected (SaaS Platform)');
+    try {
+      // Sync indexes to automatically drop old bad indexes and build partialFilterExpression indexes
+      await User.syncIndexes();
+      console.log('✅ MongoDB User Indexes Synced (Duplicate null error prevented)');
+    } catch (idxErr) {
+      console.warn('⚠️ Index sync notice:', idxErr.message);
+    }
+  })
   .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
 // Global state for per-token ESP8266 commands
@@ -62,15 +70,34 @@ async function authenticateToken(req) {
 async function sendWebhook(url, payload) {
   if (!url || !url.startsWith('http')) return null;
   try {
-    console.log(`🌐 Dispatching Webhook to ${url}:`, payload);
+    console.log(`\n======================================================`);
+    console.log(`🌐 [OUTGOING WEBHOOK] ➔ Dispatching to: ${url}`);
+    console.log(`📦 Payload Sent:\n${JSON.stringify(payload, null, 2)}`);
+    console.log(`======================================================\n`);
+    
     const response = await axios.post(url, payload, {
-      timeout: 4000,
-      headers: { 'Content-Type': 'application/json' }
+      timeout: 15000, // 15 seconds timeout
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Tunnel-Skip-AntiPhishing-Page': 'true',
+        'ngrok-skip-browser-warning': 'true',
+        'User-Agent': 'SaaS-Attendance-Webhook-Dispatcher/1.0'
+      }
     });
-    console.log(`✅ Webhook response from ${url}:`, response.data);
+    
+    console.log(`\n======================================================`);
+    console.log(`✅ [WEBHOOK RESPONSE RECEIVED] (HTTP ${response.status}) from: ${url}`);
+    console.log(`📥 Data Received:\n${JSON.stringify(response.data, null, 2)}`);
+    console.log(`======================================================\n`);
     return { status: response.status, data: response.data };
   } catch (err) {
-    console.error(`⚠️ Webhook delivery failed to ${url}:`, err.message);
+    console.error(`\n======================================================`);
+    console.error(`⚠️ [WEBHOOK DELIVERY FAILED] Target: ${url}`);
+    console.error(`❌ Error: ${err.message}`);
+    if (err.response) {
+      console.error(`📥 Error Response (HTTP ${err.response.status}):\n${JSON.stringify(err.response.data, null, 2)}`);
+    }
+    console.error(`======================================================\n`);
     return { status: err.response ? err.response.status : 500, error: err.message, data: err.response ? err.response.data : null };
   }
 }
@@ -238,6 +265,10 @@ io.on('connection', (socket) => {
       if (!org) return;
       await touchDeviceHeartbeat(org);
 
+      console.log(`\n======================================================`);
+      console.log(`📥 [SOCKET ATTENDANCE PUNCH] From Org: "${org.name}"`);
+      console.log(`📦 Incoming Payload:`, data);
+
       let user = null;
       if (fingerprintId) {
         user = await User.findOne({ orgId: org._id, fingerprintId: parseInt(fingerprintId) });
@@ -245,12 +276,14 @@ io.on('connection', (socket) => {
         user = await User.findOne({ orgId: org._id, rfidUid: rfidUid.toUpperCase() });
       }
 
+      console.log(`👤 Matched User in DB:`, user ? `${user.name} (Member ID: ${user.memberId || 'N/A'})` : 'Unknown User (Not registered)');
+
       const attendanceLog = new Attendance({
         orgId: org._id,
         userId: user ? user._id : null,
         memberId: user ? user.memberId : null,
-        fingerprintId: fingerprintId ? parseInt(fingerprintId) : null,
-        rfidUid: rfidUid ? rfidUid.toUpperCase() : null,
+        fingerprintId: fingerprintId ? parseInt(fingerprintId) : undefined,
+        rfidUid: rfidUid ? rfidUid.toUpperCase() : undefined,
         method: fingerprintId ? 'fingerprint' : 'rfid',
         timestamp: new Date()
       });
@@ -294,11 +327,12 @@ io.on('connection', (socket) => {
         webhookStatus: attendanceLog.webhookStatus
       };
       io.to(`org_${org.token}`).emit('new_attendance', record);
-      console.log(`🎯 Attendance Recorded for ${org.name}:`, record);
+      console.log(`🎯 [ATTENDANCE SAVED & BROADCAST]:`, record);
+      console.log(`======================================================\n`);
 
       socket.emit('attendance_result', { success: true, name: displayStudentName });
     } catch (err) {
-      console.error(err);
+      console.error('❌ Error handling socket attendance:', err);
       socket.emit('attendance_result', { success: false });
     }
   });
@@ -306,6 +340,7 @@ io.on('connection', (socket) => {
   socket.on('hardware_enroll_progress', async (data) => {
     const token = socket.orgToken || data?.token;
     if (token && data.message) {
+      console.log(`🔄 [ENROLL PROGRESS] [${token}]: ${data.message}`);
       io.to(`org_${token}`).emit('enroll_status', { message: data.message });
       const org = await Organization.findOne({ token, isActive: true });
       if (org) await touchDeviceHeartbeat(org);
@@ -321,40 +356,87 @@ io.on('connection', (socket) => {
     if (!org) return;
     await touchDeviceHeartbeat(org);
 
+    console.log(`\n======================================================`);
+    console.log(`📥 [SOCKET ENROLL SUCCESS] From Org: "${org.name}"`);
+    console.log(`📦 Incoming Payload:`, data);
+
     const currentCmd = getOrgCommand(token);
     if (currentCmd.mode === 'enroll') {
       try {
-        let targetUser;
+        let targetUser = null;
         const uData = currentCmd.userData || {};
         const targetUserId = currentCmd.userId;
+        const formattedRfid = (currentCmd.enrollType === 'rfid' && rfidUid) ? rfidUid.toUpperCase().trim() : null;
+        const parsedFpId = (currentCmd.enrollType === 'fingerprint' && fingerprintId) ? parseInt(fingerprintId) : null;
 
+        // 1. Search by DB User ID if provided
         if (targetUserId) {
           targetUser = await User.findById(targetUserId);
-          if (targetUser) {
-            if (currentCmd.enrollType === 'fingerprint' && fingerprintId) targetUser.fingerprintId = parseInt(fingerprintId);
-            else if (currentCmd.enrollType === 'rfid' && rfidUid) targetUser.rfidUid = rfidUid.toUpperCase();
-            if (uData.memberId) targetUser.memberId = uData.memberId;
-            if (uData.name) targetUser.name = uData.name;
-            if (uData.roll) targetUser.roll = uData.roll;
-            if (uData.email) targetUser.email = uData.email;
-            if (uData.phone) targetUser.phone = uData.phone;
-            if (uData.address) targetUser.address = uData.address;
-            await targetUser.save();
+        }
+
+        // 2. Search by memberId within this organization
+        if (!targetUser && uData.memberId) {
+          targetUser = await User.findOne({ orgId: org._id, memberId: uData.memberId });
+        }
+
+        // 3. Search if this card or fingerprint is already in the database
+        if (!targetUser) {
+          if (formattedRfid) {
+            targetUser = await User.findOne({ orgId: org._id, rfidUid: formattedRfid });
+          } else if (parsedFpId) {
+            targetUser = await User.findOne({ orgId: org._id, fingerprintId: parsedFpId });
           }
+        }
+
+        // Clear this RFID UID or Fingerprint ID from any other user in this org to prevent duplicate key conflicts
+        if (formattedRfid) {
+          await User.updateMany(
+            { orgId: org._id, rfidUid: formattedRfid, _id: { $ne: targetUser?._id } },
+            { $unset: { rfidUid: "" } }
+          );
+        }
+        if (parsedFpId) {
+          await User.updateMany(
+            { orgId: org._id, fingerprintId: parsedFpId, _id: { $ne: targetUser?._id } },
+            { $unset: { fingerprintId: "" } }
+          );
+        }
+
+        if (targetUser) {
+          // Update existing user
+          if (formattedRfid) targetUser.rfidUid = formattedRfid;
+          if (parsedFpId) targetUser.fingerprintId = parsedFpId;
+          if (uData.memberId) targetUser.memberId = uData.memberId;
+          if (uData.name) targetUser.name = uData.name;
+          if (uData.roll !== undefined) targetUser.roll = uData.roll;
+          if (uData.email !== undefined) targetUser.email = uData.email;
+          if (uData.phone !== undefined) targetUser.phone = uData.phone;
+          if (uData.address !== undefined) targetUser.address = uData.address;
+          await targetUser.save();
         } else {
-          targetUser = new User({
+          // Create new user
+          const userPayload = {
             orgId: org._id,
             memberId: uData.memberId || '',
-            fingerprintId: currentCmd.enrollType === 'fingerprint' && fingerprintId ? parseInt(fingerprintId) : undefined,
-            rfidUid: currentCmd.enrollType === 'rfid' && rfidUid ? rfidUid.toUpperCase() : undefined,
             name: uData.name || 'Enrolled Member',
             roll: uData.roll || '',
             email: uData.email || '',
             phone: uData.phone || '',
             address: uData.address || ''
-          });
+          };
+          if (parsedFpId) userPayload.fingerprintId = parsedFpId;
+          if (formattedRfid) userPayload.rfidUid = formattedRfid;
+          targetUser = new User(userPayload);
           await targetUser.save();
         }
+
+        console.log(`💾 [USER ENROLLED SUCCESSFULLY]:`, {
+          id: targetUser?._id,
+          name: targetUser?.name,
+          memberId: targetUser?.memberId,
+          fingerprintId: targetUser?.fingerprintId,
+          rfidUid: targetUser?.rfidUid
+        });
 
         setOrgCommand(token, { mode: 'attendance', id: null, enrollType: null });
 
@@ -379,11 +461,12 @@ io.on('connection', (socket) => {
             timestamp: new Date()
           });
         }
+        console.log(`======================================================\n`);
         socket.emit('enroll_result', { success: true });
       } catch (err) {
-        console.error(err);
+        console.error('❌ Error processing socket enroll success:', err);
         setOrgCommand(token, { mode: 'attendance', id: null, enrollType: null });
-        io.to(`org_${token}`).emit('enroll_error', { message: 'Database error.' });
+        io.to(`org_${token}`).emit('enroll_error', { message: 'Database error: ' + err.message });
         socket.emit('enroll_result', { success: false });
       }
     }
@@ -500,10 +583,13 @@ app.post('/api/organizations/:id/regenerate-token', async (req, res) => {
 // Verify Token API
 app.post('/api/v1/verify-token', async (req, res) => {
   const org = await authenticateToken(req);
-  if (!org) return res.status(401).json({ valid: false, message: 'Invalid or inactive organization token' });
+  if (!org) {
+    console.log(`⚠️ [REST API VERIFY TOKEN] Failed: Invalid or inactive token`);
+    return res.status(401).json({ valid: false, message: 'Invalid or inactive organization token' });
+  }
 
   const state = deviceStateMap.get(org.token) || org.deviceState || 'offline';
-  res.json({
+  const responseData = {
     valid: true,
     organization: {
       id: org._id,
@@ -517,7 +603,10 @@ app.post('/api/v1/verify-token', async (req, res) => {
     },
     deviceStatus: state,
     lastDevicePing: org.lastDevicePing || null
-  });
+  };
+
+  console.log(`🔑 [REST API VERIFY TOKEN] Verified Org "${org.name}" (Status: ${state})`);
+  res.json(responseData);
 });
 
 // Config Webhook API for 3rd party software
@@ -527,20 +616,27 @@ app.post('/api/v1/config/webhook', async (req, res) => {
 
   const { attendance_callback_url, enroll_callback_url, device_status_callback_url } = req.body;
 
+  console.log(`\n======================================================`);
+  console.log(`⚙️ [REST API CONFIG WEBHOOK] Updating Webhooks for "${org.name}":`, req.body);
+
   if (attendance_callback_url !== undefined) org.attendanceCallbackUrl = attendance_callback_url;
   if (enroll_callback_url !== undefined) org.enrollCallbackUrl = enroll_callback_url;
   if (device_status_callback_url !== undefined) org.deviceStatusCallbackUrl = device_status_callback_url;
 
   await org.save();
 
-  res.json({
+  const responseData = {
     status: 'success',
     message: 'Webhook URLs registered successfully',
     organization: org.name,
     attendanceCallbackUrl: org.attendanceCallbackUrl,
     enrollCallbackUrl: org.enrollCallbackUrl,
     deviceStatusCallbackUrl: org.deviceStatusCallbackUrl
-  });
+  };
+  console.log(`✅ [WEBHOOK CONFIG SAVED]:`, responseData);
+  console.log(`======================================================\n`);
+
+  res.json(responseData);
 });
 
 // Test Webhook Dispatcher API (For Developers to test their receiver endpoints)
@@ -549,6 +645,9 @@ app.post('/api/v1/test-webhook', async (req, res) => {
   if (!org) return res.status(401).json({ error: 'Invalid organization token' });
 
   const { eventType, custom_url } = req.body; // 'attendance' | 'enroll' | 'device_status'
+
+  console.log(`\n======================================================`);
+  console.log(`🧪 [REST API TEST WEBHOOK] Triggered by "${org.name}" for Event: "${eventType}"`);
 
   let targetUrl = custom_url;
   let payload = {};
@@ -593,6 +692,7 @@ app.post('/api/v1/test-webhook', async (req, res) => {
   }
 
   if (!targetUrl) {
+    console.warn(`⚠️ [TEST WEBHOOK] No target callback URL found for event "${eventType}"`);
     return res.status(400).json({ error: `No webhook URL registered for event type "${eventType}". Please register a URL first.` });
   }
 
@@ -615,6 +715,9 @@ app.post('/api/v1/enroll', async (req, res) => {
   if (!enrollType || !['fingerprint', 'rfid'].includes(enrollType)) {
     return res.status(400).json({ error: 'enrollType must be "fingerprint" or "rfid"' });
   }
+
+  console.log(`\n======================================================`);
+  console.log(`🚀 [REST API REMOTE ENROLL] Request for Org "${org.name}":`, req.body);
 
   let assignedFpId = null;
   if (enrollType === 'fingerprint') {
@@ -655,14 +758,18 @@ app.post('/api/v1/enroll', async (req, res) => {
     message: `Remote enroll command triggered for ${userData.name} (${enrollType.toUpperCase()})`
   });
 
-  res.json({
+  const responseData = {
     status: 'success',
     message: `Machine set to enroll mode. Please tap finger/card on reader.`,
     token: org.token,
     enrollType,
     assignedFingerprintId: assignedFpId,
     memberId: userData.memberId
-  });
+  };
+  console.log(`📡 [COMMAND SENT TO HARDWARE]:`, responseData);
+  console.log(`======================================================\n`);
+
+  res.json(responseData);
 });
 
 // Fetch Users for an Org (3rd party API)
@@ -670,6 +777,7 @@ app.get('/api/v1/users', async (req, res) => {
   const org = await authenticateToken(req);
   if (!org) return res.status(401).json({ error: 'Invalid organization token' });
   const users = await User.find({ orgId: org._id }).sort({ createdAt: -1 });
+  console.log(`👥 [REST API FETCH USERS] Sent ${users.length} users for Org "${org.name}"`);
   res.json(users);
 });
 
@@ -678,6 +786,7 @@ app.get('/api/v1/logs', async (req, res) => {
   const org = await authenticateToken(req);
   if (!org) return res.status(401).json({ error: 'Invalid organization token' });
   const logs = await Attendance.find({ orgId: org._id }).populate('userId').sort({ timestamp: -1 }).limit(100);
+  console.log(`📋 [REST API FETCH LOGS] Sent ${logs.length} logs for Org "${org.name}"`);
   res.json(logs);
 });
 
@@ -715,6 +824,10 @@ app.post('/api/attendance', async (req, res) => {
     // Touch hardware heartbeat
     await touchDeviceHeartbeat(org);
 
+    console.log(`\n======================================================`);
+    console.log(`📥 [REST HARDWARE ATTENDANCE] Received from "${org.name}"`);
+    console.log(`📦 Incoming Request Body:`, req.body);
+
     let user = null;
     if (fingerprintId) {
       user = await User.findOne({ orgId: org._id, fingerprintId: parseInt(fingerprintId) });
@@ -722,12 +835,14 @@ app.post('/api/attendance', async (req, res) => {
       user = await User.findOne({ orgId: org._id, rfidUid: rfidUid.toUpperCase() });
     }
 
+    console.log(`👤 Matched User in DB:`, user ? `${user.name} (Member ID: ${user.memberId || 'N/A'})` : 'Unknown User (Not registered)');
+
     const attendanceLog = new Attendance({
       orgId: org._id,
       userId: user ? user._id : null,
       memberId: user ? user.memberId : null,
-      fingerprintId: fingerprintId ? parseInt(fingerprintId) : null,
-      rfidUid: rfidUid ? rfidUid.toUpperCase() : null,
+      fingerprintId: fingerprintId ? parseInt(fingerprintId) : undefined,
+      rfidUid: rfidUid ? rfidUid.toUpperCase() : undefined,
       method: fingerprintId ? 'fingerprint' : 'rfid',
       timestamp: new Date()
     });
@@ -771,11 +886,15 @@ app.post('/api/attendance', async (req, res) => {
       webhookStatus: attendanceLog.webhookStatus
     };
     io.to(`org_${org.token}`).emit('new_attendance', record);
-    console.log(`🎯 Attendance Recorded for ${org.name}:`, record);
+    console.log(`🎯 [ATTENDANCE RECORDED & BROADCAST]:`, record);
 
-    res.json({ name: displayStudentName, roll: user ? user.roll || '' : '' });
+    const responsePayload = { name: displayStudentName, roll: user ? user.roll || '' : '' };
+    console.log(`📤 [RESPONSE TO ESP8266]:`, responsePayload);
+    console.log(`======================================================\n`);
+
+    res.json(responsePayload);
   } catch (err) {
-    console.error('Error recording attendance:', err);
+    console.error('❌ Error recording attendance:', err);
     res.status(500).send('Server Error');
   }
 });
@@ -785,6 +904,7 @@ app.post('/api/enroll_progress', async (req, res) => {
   const token = req.headers['x-device-token'] || req.query.token || req.body.token;
   const { message } = req.body;
   if (token && message) {
+    console.log(`🔄 [REST ENROLL PROGRESS] [${token}]: ${message}`);
     io.to(`org_${token}`).emit('enroll_status', { message });
     const org = await Organization.findOne({ token, isActive: true });
     if (org) await touchDeviceHeartbeat(org);
@@ -804,44 +924,88 @@ app.post('/api/enroll_success', async (req, res) => {
 
   await touchDeviceHeartbeat(org);
 
+  console.log(`\n======================================================`);
+  console.log(`📥 [REST HARDWARE ENROLL SUCCESS] Received from "${org.name}"`);
+  console.log(`📦 Incoming Request Body:`, req.body);
+
   const currentCmd = getOrgCommand(token);
 
   if (currentCmd.mode === 'enroll') {
     try {
-      let targetUser;
+      let targetUser = null;
       const uData = currentCmd.userData || {};
       const targetUserId = currentCmd.userId;
+      const formattedRfid = (currentCmd.enrollType === 'rfid' && rfidUid) ? rfidUid.toUpperCase().trim() : null;
+      const parsedFpId = (currentCmd.enrollType === 'fingerprint' && fingerprintId) ? parseInt(fingerprintId) : null;
 
+      // 1. Search by DB User ID if provided
       if (targetUserId) {
         targetUser = await User.findById(targetUserId);
-        if (targetUser) {
-          if (currentCmd.enrollType === 'fingerprint' && fingerprintId) {
-            targetUser.fingerprintId = parseInt(fingerprintId);
-          } else if (currentCmd.enrollType === 'rfid' && rfidUid) {
-            targetUser.rfidUid = rfidUid.toUpperCase();
-          }
-          if (uData.memberId) targetUser.memberId = uData.memberId;
-          if (uData.name) targetUser.name = uData.name;
-          if (uData.roll) targetUser.roll = uData.roll;
-          if (uData.email) targetUser.email = uData.email;
-          if (uData.phone) targetUser.phone = uData.phone;
-          if (uData.address) targetUser.address = uData.address;
-          await targetUser.save();
+      }
+
+      // 2. Search by memberId within this organization
+      if (!targetUser && uData.memberId) {
+        targetUser = await User.findOne({ orgId: org._id, memberId: uData.memberId });
+      }
+
+      // 3. Search if this card or fingerprint is already in the database
+      if (!targetUser) {
+        if (formattedRfid) {
+          targetUser = await User.findOne({ orgId: org._id, rfidUid: formattedRfid });
+        } else if (parsedFpId) {
+          targetUser = await User.findOne({ orgId: org._id, fingerprintId: parsedFpId });
         }
+      }
+
+      // Clear this RFID UID or Fingerprint ID from any other user in this org to prevent duplicate key conflicts
+      if (formattedRfid) {
+        await User.updateMany(
+          { orgId: org._id, rfidUid: formattedRfid, _id: { $ne: targetUser?._id } },
+          { $unset: { rfidUid: "" } }
+        );
+      }
+      if (parsedFpId) {
+        await User.updateMany(
+          { orgId: org._id, fingerprintId: parsedFpId, _id: { $ne: targetUser?._id } },
+          { $unset: { fingerprintId: "" } }
+        );
+      }
+
+      if (targetUser) {
+        // Update existing user
+        if (formattedRfid) targetUser.rfidUid = formattedRfid;
+        if (parsedFpId) targetUser.fingerprintId = parsedFpId;
+        if (uData.memberId) targetUser.memberId = uData.memberId;
+        if (uData.name) targetUser.name = uData.name;
+        if (uData.roll !== undefined) targetUser.roll = uData.roll;
+        if (uData.email !== undefined) targetUser.email = uData.email;
+        if (uData.phone !== undefined) targetUser.phone = uData.phone;
+        if (uData.address !== undefined) targetUser.address = uData.address;
+        await targetUser.save();
       } else {
-        targetUser = new User({
+        // Create new user
+        const userPayload = {
           orgId: org._id,
           memberId: uData.memberId || '',
-          fingerprintId: currentCmd.enrollType === 'fingerprint' && fingerprintId ? parseInt(fingerprintId) : undefined,
-          rfidUid: currentCmd.enrollType === 'rfid' && rfidUid ? rfidUid.toUpperCase() : undefined,
           name: uData.name || 'Enrolled Member',
           roll: uData.roll || '',
           email: uData.email || '',
           phone: uData.phone || '',
           address: uData.address || ''
-        });
+        };
+        if (parsedFpId) userPayload.fingerprintId = parsedFpId;
+        if (formattedRfid) userPayload.rfidUid = formattedRfid;
+        targetUser = new User(userPayload);
         await targetUser.save();
       }
+
+      console.log(`💾 [USER SAVED IN DATABASE]:`, {
+        id: targetUser?._id,
+        name: targetUser?.name,
+        memberId: targetUser?.memberId,
+        fingerprintId: targetUser?.fingerprintId,
+        rfidUid: targetUser?.rfidUid
+      });
 
       setOrgCommand(token, { mode: 'attendance', id: null, enrollType: null });
 
@@ -867,11 +1031,12 @@ app.post('/api/enroll_success', async (req, res) => {
         });
       }
 
+      console.log(`======================================================\n`);
       res.send('Enrollment saved successfully');
     } catch (err) {
-      console.error('Error processing enroll success:', err);
+      console.error('❌ Error processing enroll success:', err);
       setOrgCommand(token, { mode: 'attendance', id: null, enrollType: null });
-      io.to(`org_${token}`).emit('enroll_error', { message: 'Database error during enrollment.' });
+      io.to(`org_${token}`).emit('enroll_error', { message: 'Database error during enrollment: ' + err.message });
       res.status(500).send('Server Error');
     }
   } else {

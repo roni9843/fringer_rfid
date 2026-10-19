@@ -416,46 +416,73 @@ export default function ApiDocsTester({ socket }) {
         /* Complete Developer Documentation Tab */
         <div className="space-y-8 animate-fade-in">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-            <h2 className="text-2xl font-bold text-slate-800 mb-8 border-b border-slate-100 pb-4">📖 Complete SaaS Integration API & Webhooks Specification</h2>
+            <div className="border-b border-slate-200 pb-6 mb-8">
+              <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3 mb-2">
+                <span>📖</span> Complete SaaS Integration API & Webhooks Specification
+              </h2>
+              <p className="text-slate-600 text-sm leading-relaxed">
+                Connect your School ERP, HR Management System, or Custom Application with our Biometric Attendance SaaS. 
+                Below is the full specification for both <strong>Outgoing Webhooks</strong> (events our server sends to your callback URLs) 
+                and <strong>Incoming REST APIs</strong> (endpoints your software can call).
+              </p>
+            </div>
 
-            <div className="space-y-12">
-              
-              {/* 1. Device Status Webhook */}
-              <div>
-                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-3 mb-2">
-                  <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs uppercase tracking-wider font-bold">Webhook</span>
-                  1. Hardware Device Online / Offline Status Change
-                </h3>
-                <p className="text-slate-600 mb-4 text-sm leading-relaxed">
-                  Our central server automatically sends an HTTP POST Webhook payload to your <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-200">device_status_callback_url</code> whenever your attendance hardware connects (online) or loses heartbeat disconnection (offline).
-                </p>
-                <div className="bg-slate-900 rounded-xl p-5 overflow-x-auto border border-slate-800">
-                  <pre className="text-slate-300 font-mono text-sm leading-relaxed">
-<span className="text-slate-500">{"// Sent to your device_status_callback_url\n"}</span>
-{"{\n"}
-{'  "event": "device_status",\n'}
-{'  "status": "online", '}
-<span className="text-slate-500">{"// or \"offline\"\n"}</span>
-{'  "organization": "Oxford International School",\n'}
-{`  "token": "${inputToken || 'YOUR_ORGANIZATION_TOKEN'}",\n`}
-{'  "timestamp": "2026-10-02T14:00:00.000Z"\n'}
-{"}"}
-                  </pre>
-                </div>
+            {/* Quick Summary Navigation Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+              <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4">
+                <h4 className="text-emerald-800 font-bold text-sm mb-2 flex items-center gap-2">
+                  <span>📡</span> Outgoing Webhooks (SaaS Server ➔ Your Server)
+                </h4>
+                <ul className="text-xs text-emerald-700 space-y-1.5 font-medium">
+                  <li>• <strong>1. Daily Attendance Punch Webhook</strong> (attendance_callback_url)</li>
+                  <li>• <strong>2. Remote Enrollment Success Webhook</strong> (enroll_callback_url)</li>
+                  <li>• <strong>3. Hardware Device Online / Offline Status</strong> (device_status_callback_url)</li>
+                </ul>
               </div>
 
-              {/* 2. Attendance Punch Webhook */}
+              <div className="bg-indigo-50/70 border border-indigo-200 rounded-xl p-4">
+                <h4 className="text-indigo-800 font-bold text-sm mb-2 flex items-center gap-2">
+                  <span>⚡</span> Public REST APIs (Your Software ➔ SaaS Server)
+                </h4>
+                <ul className="text-xs text-indigo-700 space-y-1.5 font-medium">
+                  <li>• <strong>POST /api/v1/verify-token</strong> — Authenticate Token & Get Device State</li>
+                  <li>• <strong>POST /api/v1/config/webhook</strong> — Register / Update Webhook URLs</li>
+                  <li>• <strong>POST /api/v1/enroll</strong> — Trigger Remote Hardware Machine Enrollment</li>
+                  <li>• <strong>GET /api/v1/users</strong> — Fetch Enrolled Members/Students List</li>
+                  <li>• <strong>GET /api/v1/logs</strong> — Fetch Recent Attendance Punch Logs</li>
+                  <li>• <strong>POST /api/v1/test-webhook</strong> — Dispatch Mock Test Webhooks</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="space-y-14">
+              
+              {/* ==================================================== */}
+              {/* SECTION A: WEBHOOK SPECIFICATIONS */}
+              {/* ==================================================== */}
               <div>
-                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-3 mb-2">
-                  <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs uppercase tracking-wider font-bold">Webhook</span>
-                  2. Real-Time Daily Attendance Punch Webhook
-                </h3>
-                <p className="text-slate-600 mb-4 text-sm leading-relaxed">
-                  When a student/employee scans their finger or RFID card, our server posts this payload to your <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-200">attendance_callback_url</code>. If your server returns <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-200">{"{ \"name\": \"Roni Ahmed\" }"}</code> in response, the hardware OLED screen will immediately display <strong>"WELCOME! Hello Roni Ahmed"</strong>!
-                </p>
-                <div className="bg-slate-900 rounded-xl p-5 overflow-x-auto border border-slate-800">
-                  <pre className="text-slate-300 font-mono text-sm leading-relaxed">
-<span className="text-slate-500">{"// Sent to your attendance_callback_url\n"}</span>
+                <div className="flex items-center gap-3 border-b-2 border-emerald-500 pb-3 mb-8">
+                  <span className="bg-emerald-500 text-white text-xs font-black px-2.5 py-1 rounded-md uppercase tracking-wider">SECTION A</span>
+                  <h3 className="text-xl font-bold text-slate-900">Outgoing Webhooks (Callbacks to Your Server)</h3>
+                </div>
+
+                <div className="space-y-10">
+                  {/* Webhook 1: Attendance Punch */}
+                  <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50/50">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs uppercase tracking-wider font-bold">Webhook 1</span>
+                        Daily Attendance Punch Webhook
+                      </h4>
+                      <code className="text-xs font-mono bg-slate-200/70 text-slate-700 px-2 py-1 rounded">Target: attendance_callback_url</code>
+                    </div>
+                    <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                      Triggered instantaneously when an enrolled student or employee places their finger on the biometric scanner or scans their RFID card. 
+                      If your receiver returns a JSON response containing <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-200">{"{ \"name\": \"Student Name\" }"}</code>, the hardware OLED screen will immediately greet the person with <strong>"WELCOME! Hello Student Name"</strong>!
+                    </p>
+                    <div className="bg-slate-900 rounded-xl p-5 overflow-x-auto border border-slate-800">
+                      <pre className="text-slate-300 font-mono text-sm leading-relaxed">
+<span className="text-slate-500">{"// HTTP POST Payload sent to your attendance_callback_url:\n"}</span>
 {"{\n"}
 {'  "event": "attendance_punch",\n'}
 {'  "organization": "Oxford International School",\n'}
@@ -463,65 +490,159 @@ export default function ApiDocsTester({ socket }) {
 {'  "memberId": "STD-2026-001",\n'}
 {'  "name": "Roni Ahmed",\n'}
 {'  "fingerprintId": 1,\n'}
-{'  "rfidUid": null,\n'}
-{'  "timestamp": "2026-10-02T14:05:00.000Z"\n'}
+{'  "rfidUid": null, '}
+<span className="text-slate-500">{"// or \"A1B2C3D4\" if RFID card was scanned\n"}</span>
+{'  "timestamp": "2026-10-08T08:30:00.000Z"\n'}
 {"}\n\n"}
-<span className="text-slate-500">{"// Your Server Expected Response (Status 200 OK):\n"}</span>
+<span className="text-slate-500">{"// Expected HTTP 200 OK Response from your server (shown on Machine OLED screen):\n"}</span>
 {"{\n"}
 {'  "status": "success",\n'}
 {'  "name": "Roni Ahmed"\n'}
 {"}"}
-                  </pre>
+                      </pre>
+                    </div>
+                  </div>
+
+                  {/* Webhook 2: Remote Enrollment Success */}
+                  <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50/50">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs uppercase tracking-wider font-bold">Webhook 2</span>
+                        Remote Enrollment Success Callback Webhook
+                      </h4>
+                      <code className="text-xs font-mono bg-slate-200/70 text-slate-700 px-2 py-1 rounded">Target: enroll_callback_url</code>
+                    </div>
+                    <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                      Triggered as soon as a user successfully completes the hardware enrollment process on the machine (e.g., placing the same finger twice or tapping an RFID card). 
+                      Your server can listen to this webhook to instantly link the biometric slot ID or RFID UID to the student/employee profile in your database.
+                    </p>
+                    <div className="bg-slate-900 rounded-xl p-5 overflow-x-auto border border-slate-800">
+                      <pre className="text-slate-300 font-mono text-sm leading-relaxed">
+<span className="text-slate-500">{"// HTTP POST Payload sent to your enroll_callback_url:\n"}</span>
+{"{\n"}
+{'  "event": "enroll_success",\n'}
+{'  "status": "success",\n'}
+{'  "organization": "Oxford International School",\n'}
+{`  "token": "${inputToken || 'YOUR_ORGANIZATION_TOKEN'}",\n`}
+{'  "memberId": "STD-2026-001",\n'}
+{'  "name": "Roni Ahmed",\n'}
+{'  "enrollType": "fingerprint", '}
+<span className="text-slate-500">{"// \"fingerprint\" or \"rfid\"\n"}</span>
+{'  "fingerprintId": 1, '}
+<span className="text-slate-500">{"// integer slot (1-127), null if RFID\n"}</span>
+{'  "rfidUid": null, '}
+<span className="text-slate-500">{"// hex string e.g. \"A1B2C3D4\", null if fingerprint\n"}</span>
+{'  "timestamp": "2026-10-08T08:35:00.000Z"\n'}
+{"}\n\n"}
+<span className="text-slate-500">{"// Expected Response: HTTP 200 OK"}</span>
+                      </pre>
+                    </div>
+                  </div>
+
+                  {/* Webhook 3: Device Online/Offline Status */}
+                  <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50/50">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs uppercase tracking-wider font-bold">Webhook 3</span>
+                        Hardware Device Online / Offline Status Change
+                      </h4>
+                      <code className="text-xs font-mono bg-slate-200/70 text-slate-700 px-2 py-1 rounded">Target: device_status_callback_url</code>
+                    </div>
+                    <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                      Our central server sends an HTTP POST Webhook whenever your physical ESP8266 attendance hardware connects/boots up (<code className="text-emerald-600 font-bold">online</code>) or stops pinging the heartbeat for more than 45 seconds due to power loss or WiFi disconnection (<code className="text-rose-600 font-bold">offline</code>).
+                    </p>
+                    <div className="bg-slate-900 rounded-xl p-5 overflow-x-auto border border-slate-800">
+                      <pre className="text-slate-300 font-mono text-sm leading-relaxed">
+<span className="text-slate-500">{"// HTTP POST Payload sent to your device_status_callback_url:\n"}</span>
+{"{\n"}
+{'  "event": "device_status",\n'}
+{'  "status": "online", '}
+<span className="text-slate-500">{"// or \"offline\"\n"}</span>
+{'  "organization": "Oxford International School",\n'}
+{`  "token": "${inputToken || 'YOUR_ORGANIZATION_TOKEN'}",\n`}
+{'  "timestamp": "2026-10-08T08:00:00.000Z"\n'}
+{"}"}
+                      </pre>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* 3. Register Webhooks Endpoint */}
+
+              {/* ==================================================== */}
+              {/* SECTION B: REST APIS SPECIFICATION */}
+              {/* ==================================================== */}
               <div>
-                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-3 mb-4">
-                  <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs uppercase tracking-wider font-bold">POST</span>
-                  3. Configure / Register Webhook URLs API (`/api/v1/config/webhook`)
-                </h3>
-                
-                <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden mb-4">
-                  <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 font-bold text-sm text-slate-700">Request Body Parameters</div>
-                  <ul className="divide-y divide-slate-200">
-                    <li className="p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <code className="text-indigo-600 font-bold text-sm bg-indigo-50 px-1.5 py-0.5 rounded">token</code>
-                        <span className="bg-red-100 text-red-700 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded">Required</span>
-                        <span className="text-slate-500 text-xs">string</span>
-                      </div>
-                      <p className="text-sm text-slate-600">The secret Organization API Token generated from the SaaS Admin Panel.</p>
-                    </li>
-                    <li className="p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <code className="text-slate-700 font-bold text-sm bg-slate-100 px-1.5 py-0.5 rounded">attendance_callback_url</code>
-                        <span className="bg-slate-200 text-slate-600 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded">Optional</span>
-                        <span className="text-slate-500 text-xs">string (URL)</span>
-                      </div>
-                      <p className="text-sm text-slate-600">The URL on your server to receive real-time daily attendance punch data.</p>
-                    </li>
-                    <li className="p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <code className="text-slate-700 font-bold text-sm bg-slate-100 px-1.5 py-0.5 rounded">enroll_callback_url</code>
-                        <span className="bg-slate-200 text-slate-600 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded">Optional</span>
-                        <span className="text-slate-500 text-xs">string (URL)</span>
-                      </div>
-                      <p className="text-sm text-slate-600">The URL on your server to receive successful remote enrollment data.</p>
-                    </li>
-                    <li className="p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <code className="text-slate-700 font-bold text-sm bg-slate-100 px-1.5 py-0.5 rounded">device_status_callback_url</code>
-                        <span className="bg-slate-200 text-slate-600 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded">Optional</span>
-                        <span className="text-slate-500 text-xs">string (URL)</span>
-                      </div>
-                      <p className="text-sm text-slate-600">The URL on your server to receive hardware device online/offline status alerts.</p>
-                    </li>
-                  </ul>
+                <div className="flex items-center gap-3 border-b-2 border-indigo-500 pb-3 mb-8">
+                  <span className="bg-indigo-600 text-white text-xs font-black px-2.5 py-1 rounded-md uppercase tracking-wider">SECTION B</span>
+                  <h3 className="text-xl font-bold text-slate-900">Public REST APIs (Called by Your Software)</h3>
                 </div>
 
-                <div className="bg-slate-900 rounded-xl p-5 overflow-x-auto border border-slate-800">
-                  <pre className="text-slate-300 font-mono text-sm leading-relaxed">
+                <div className="space-y-10">
+
+                  {/* API 1: Verify Token */}
+                  <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50/50">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs uppercase tracking-wider font-bold">POST</span>
+                        1. Verify Token & Fetch Device Status (`/api/v1/verify-token`)
+                      </h4>
+                      <code className="text-xs font-mono bg-slate-200/70 text-slate-700 px-2 py-1 rounded">Auth: Token in Body or Header</code>
+                    </div>
+                    <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                      Use this API to validate that your Organization Token is active and retrieve the current real-time online/offline status of your hardware device along with registered webhook configuration.
+                    </p>
+                    <div className="bg-slate-900 rounded-xl p-5 overflow-x-auto border border-slate-800">
+                      <pre className="text-slate-300 font-mono text-sm leading-relaxed">
+<span className="text-emerald-400">curl</span> -X POST "{axios.defaults.baseURL || window.location.origin}/api/v1/verify-token" \
+  -H "Content-Type: application/json" \
+  -d '{"{"}
+    "token": "{inputToken || 'YOUR_ORGANIZATION_TOKEN'}"
+  {"}"}'
+
+<span className="text-slate-500">{"\n// Response:\n"}</span>
+{"{\n"}
+{'  "valid": true,\n'}
+{'  "organization": {\n'}
+{'    "id": "6704981a2b...",\n'}
+{'    "name": "Oxford International School",\n'}
+{`    "token": "${inputToken || 'YOUR_ORGANIZATION_TOKEN'}",\n`}
+{'    "attendanceCallbackUrl": "https://your-school-erp.com/api/attendance-receiver",\n'}
+{'    "enrollCallbackUrl": "https://your-school-erp.com/api/enroll-receiver",\n'}
+{'    "deviceStatusCallbackUrl": "https://your-school-erp.com/api/device-status-receiver"\n'}
+{'  },\n'}
+{'  "deviceStatus": "online",\n'}
+{'  "lastDevicePing": "2026-10-08T08:29:45.000Z"\n'}
+{"}"}
+                      </pre>
+                    </div>
+                  </div>
+
+                  {/* API 2: Register Webhooks */}
+                  <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50/50">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs uppercase tracking-wider font-bold">POST</span>
+                        2. Configure / Register Webhook URLs (`/api/v1/config/webhook`)
+                      </h4>
+                      <code className="text-xs font-mono bg-slate-200/70 text-slate-700 px-2 py-1 rounded">Auth: Token in Body</code>
+                    </div>
+                    <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                      Programmatically set or update the 3 webhook callback URLs for your organization.
+                    </p>
+
+                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-4">
+                      <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 font-bold text-xs text-slate-700 uppercase">Parameters</div>
+                      <ul className="divide-y divide-slate-100 text-xs">
+                        <li className="p-3"><code className="font-bold text-indigo-600">token</code> <span className="text-red-500 font-bold">(Required)</span> — Your Organization Token</li>
+                        <li className="p-3"><code className="font-bold text-slate-700">attendance_callback_url</code> (Optional) — Receiver for daily attendance punches</li>
+                        <li className="p-3"><code className="font-bold text-slate-700">enroll_callback_url</code> (Optional) — Receiver for remote enrollment confirmations</li>
+                        <li className="p-3"><code className="font-bold text-slate-700">device_status_callback_url</code> (Optional) — Receiver for device online/offline alerts</li>
+                      </ul>
+                    </div>
+
+                    <div className="bg-slate-900 rounded-xl p-5 overflow-x-auto border border-slate-800">
+                      <pre className="text-slate-300 font-mono text-sm leading-relaxed">
 <span className="text-emerald-400">curl</span> -X POST "{axios.defaults.baseURL || window.location.origin}/api/v1/config/webhook" \
   -H "Content-Type: application/json" \
   -d '{"{"}
@@ -530,73 +651,37 @@ export default function ApiDocsTester({ socket }) {
     "enroll_callback_url": "https://your-school-erp.com/api/enroll-receiver",
     "device_status_callback_url": "https://your-school-erp.com/api/device-status-receiver"
   {"}"}'
-                  </pre>
-                </div>
-              </div>
+                      </pre>
+                    </div>
+                  </div>
 
-              {/* 4. Remote Enroll Endpoint */}
-              <div>
-                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-3 mb-4">
-                  <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs uppercase tracking-wider font-bold">POST</span>
-                  4. Trigger Remote Machine Enrollment API (`/api/v1/enroll`)
-                </h3>
-                
-                <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden mb-4">
-                  <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 font-bold text-sm text-slate-700">Request Body Parameters</div>
-                  <ul className="divide-y divide-slate-200">
-                    <li className="p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <code className="text-indigo-600 font-bold text-sm bg-indigo-50 px-1.5 py-0.5 rounded">token</code>
-                        <span className="bg-red-100 text-red-700 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded">Required</span>
-                        <span className="text-slate-500 text-xs">string</span>
-                      </div>
-                      <p className="text-sm text-slate-600">The secret Organization API Token.</p>
-                    </li>
-                    <li className="p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <code className="text-indigo-600 font-bold text-sm bg-indigo-50 px-1.5 py-0.5 rounded">enrollType</code>
-                        <span className="bg-red-100 text-red-700 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded">Required</span>
-                        <span className="text-slate-500 text-xs">string ("fingerprint" | "rfid")</span>
-                      </div>
-                      <p className="text-sm text-slate-600">The type of enrollment to trigger on the hardware machine.</p>
-                    </li>
-                    <li className="p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <code className="text-slate-700 font-bold text-sm bg-slate-100 px-1.5 py-0.5 rounded">memberId</code>
-                        <span className="bg-slate-200 text-slate-600 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded">Optional</span>
-                        <span className="text-slate-500 text-xs">string</span>
-                      </div>
-                      <p className="text-sm text-slate-600">Your system's unique identifier for the user (e.g., student ID or employee ID).</p>
-                    </li>
-                    <li className="p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <code className="text-slate-700 font-bold text-sm bg-slate-100 px-1.5 py-0.5 rounded">name</code>
-                        <span className="bg-slate-200 text-slate-600 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded">Optional</span>
-                        <span className="text-slate-500 text-xs">string</span>
-                      </div>
-                      <p className="text-sm text-slate-600">The full name of the user being enrolled.</p>
-                    </li>
-                    <li className="p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <code className="text-slate-700 font-bold text-sm bg-slate-100 px-1.5 py-0.5 rounded">fingerprintId</code>
-                        <span className="bg-slate-200 text-slate-600 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded">Optional</span>
-                        <span className="text-slate-500 text-xs">number (1-127)</span>
-                      </div>
-                      <p className="text-sm text-slate-600">Specific slot to save the fingerprint. If omitted, the server auto-assigns the next available slot.</p>
-                    </li>
-                    <li className="p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <code className="text-slate-700 font-bold text-sm bg-slate-100 px-1.5 py-0.5 rounded">callback_url</code>
-                        <span className="bg-slate-200 text-slate-600 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded">Optional</span>
-                        <span className="text-slate-500 text-xs">string (URL)</span>
-                      </div>
-                      <p className="text-sm text-slate-600">A custom webhook URL specifically for this enroll event. Overrides the default `enroll_callback_url`.</p>
-                    </li>
-                  </ul>
-                </div>
+                  {/* API 3: Remote Enroll */}
+                  <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50/50">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs uppercase tracking-wider font-bold">POST</span>
+                        3. Trigger Remote Hardware Machine Enrollment (`/api/v1/enroll`)
+                      </h4>
+                      <code className="text-xs font-mono bg-slate-200/70 text-slate-700 px-2 py-1 rounded">Auth: Token in Body</code>
+                    </div>
+                    <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                      Put the biometric hardware device into enrollment mode remotely from your ERP software. The machine OLED display will prompt the user to place their finger or scan RFID.
+                    </p>
 
-                <div className="bg-slate-900 rounded-xl p-5 overflow-x-auto border border-slate-800">
-                  <pre className="text-slate-300 font-mono text-sm leading-relaxed">
+                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-4">
+                      <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 font-bold text-xs text-slate-700 uppercase">Parameters</div>
+                      <ul className="divide-y divide-slate-100 text-xs">
+                        <li className="p-3"><code className="font-bold text-indigo-600">token</code> <span className="text-red-500 font-bold">(Required)</span> — Organization Token</li>
+                        <li className="p-3"><code className="font-bold text-indigo-600">enrollType</code> <span className="text-red-500 font-bold">(Required)</span> — <code className="text-slate-700">"fingerprint"</code> or <code className="text-slate-700">"rfid"</code></li>
+                        <li className="p-3"><code className="font-bold text-slate-700">memberId</code> (Optional) — Your internal user/student ID</li>
+                        <li className="p-3"><code className="font-bold text-slate-700">name</code> (Optional) — Full name of user</li>
+                        <li className="p-3"><code className="font-bold text-slate-700">fingerprintId</code> (Optional) — Slot ID (1-127). Auto-assigned if omitted</li>
+                        <li className="p-3"><code className="font-bold text-slate-700">callback_url</code> (Optional) — Custom webhook URL for this specific enroll session</li>
+                      </ul>
+                    </div>
+
+                    <div className="bg-slate-900 rounded-xl p-5 overflow-x-auto border border-slate-800">
+                      <pre className="text-slate-300 font-mono text-sm leading-relaxed">
 <span className="text-emerald-400">curl</span> -X POST "{axios.defaults.baseURL || window.location.origin}/api/v1/enroll" \
   -H "Content-Type: application/json" \
   -d '{"{"}
@@ -606,7 +691,99 @@ export default function ApiDocsTester({ socket }) {
     "enrollType": "fingerprint",
     "fingerprintId": 1
   {"}"}'
-                  </pre>
+                      </pre>
+                    </div>
+                  </div>
+
+                  {/* API 4: Fetch Enrolled Users */}
+                  <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50/50">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs uppercase tracking-wider font-bold">GET</span>
+                        4. Fetch Enrolled Users / Members List (`/api/v1/users`)
+                      </h4>
+                      <code className="text-xs font-mono bg-slate-200/70 text-slate-700 px-2 py-1 rounded">Header: x-device-token</code>
+                    </div>
+                    <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                      Retrieve the list of all members, students, or employees registered for your organization along with their fingerprint slot IDs and RFID UIDs.
+                    </p>
+                    <div className="bg-slate-900 rounded-xl p-5 overflow-x-auto border border-slate-800">
+                      <pre className="text-slate-300 font-mono text-sm leading-relaxed">
+<span className="text-emerald-400">curl</span> -X GET "{axios.defaults.baseURL || window.location.origin}/api/v1/users" \
+  -H "x-device-token: {inputToken || 'YOUR_ORGANIZATION_TOKEN'}"
+
+<span className="text-slate-500">{"\n// Response (Array of Users):\n"}</span>
+{"[\n"}
+{'  {\n'}
+{'    "_id": "670499b2...",\n'}
+{'    "memberId": "STD-2026-001",\n'}
+{'    "name": "Roni Ahmed",\n'}
+{'    "roll": "10",\n'}
+{'    "fingerprintId": 1,\n'}
+{'    "rfidUid": "A1B2C3D4",\n'}
+{'    "createdAt": "2026-10-08T08:35:00.000Z"\n'}
+{'  }\n'}
+{"]"}
+                      </pre>
+                    </div>
+                  </div>
+
+                  {/* API 5: Fetch Attendance Logs */}
+                  <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50/50">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs uppercase tracking-wider font-bold">GET</span>
+                        5. Fetch Recent Attendance Punch Logs (`/api/v1/logs`)
+                      </h4>
+                      <code className="text-xs font-mono bg-slate-200/70 text-slate-700 px-2 py-1 rounded">Header: x-device-token</code>
+                    </div>
+                    <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                      Fetch the latest 100 attendance punch logs registered on the server.
+                    </p>
+                    <div className="bg-slate-900 rounded-xl p-5 overflow-x-auto border border-slate-800">
+                      <pre className="text-slate-300 font-mono text-sm leading-relaxed">
+<span className="text-emerald-400">curl</span> -X GET "{axios.defaults.baseURL || window.location.origin}/api/v1/logs" \
+  -H "x-device-token: {inputToken || 'YOUR_ORGANIZATION_TOKEN'}"
+
+<span className="text-slate-500">{"\n// Response (Array of Attendance Logs):\n"}</span>
+{"[\n"}
+{'  {\n'}
+{'    "_id": "67049ab4...",\n'}
+{'    "memberId": "STD-2026-001",\n'}
+{'    "fingerprintId": 1,\n'}
+{'    "rfidUid": null,\n'}
+{'    "method": "fingerprint",\n'}
+{'    "timestamp": "2026-10-08T08:30:00.000Z"\n'}
+{'  }\n'}
+{"]"}
+                      </pre>
+                    </div>
+                  </div>
+
+                  {/* API 6: Test Webhook Dispatch */}
+                  <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50/50">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs uppercase tracking-wider font-bold">POST</span>
+                        6. Test Webhook Dispatcher API (`/api/v1/test-webhook`)
+                      </h4>
+                      <code className="text-xs font-mono bg-slate-200/70 text-slate-700 px-2 py-1 rounded">Auth: Token in Body</code>
+                    </div>
+                    <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                      Programmatically trigger our server to send a mock test webhook payload to your registered callback URL to test your receiver endpoints.
+                    </p>
+                    <div className="bg-slate-900 rounded-xl p-5 overflow-x-auto border border-slate-800">
+                      <pre className="text-slate-300 font-mono text-sm leading-relaxed">
+<span className="text-emerald-400">curl</span> -X POST "{axios.defaults.baseURL || window.location.origin}/api/v1/test-webhook" \
+  -H "Content-Type: application/json" \
+  -d '{"{"}
+    "token": "{inputToken || 'YOUR_ORGANIZATION_TOKEN'}",
+    "eventType": "attendance" <span className="text-slate-500">{"// \"attendance\" | \"enroll\" | \"device_status\""}</span>
+  {"}"}'
+                      </pre>
+                    </div>
+                  </div>
+
                 </div>
               </div>
 
